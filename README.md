@@ -7,8 +7,7 @@ Currently, this only contains a servlet that lets customers delete all UGC from 
 
 For example
 "curl -X POST http://localhost:4502/services/social/srp/cleanup?path=/content/usergenerated/asi/cloud -uadmin:admin"
-will delete everything under /content/usergenerated/asi/cloud. It will only delete content that the given user has
-read and delete access to. By default, things will be deleted in batches of approximately 100 items (it may not be exactly
+will delete everything under /content/usergenerated/asi/cloud. By default, things will be deleted in batches of approximately 100 items (it may not be exactly
 100 because it tries to be intelligent about deleting subtrees.) This can be
 modified with the optional batchSize parameter (eg, batchSize=200 will do batches of 200). The tool will only delete data from
-the currently configured SRP and the user passed in must have the right to read and delete the data.
+the currently configured SRP, and the user passed in must have the right to read and delete the data.
