@@ -29,6 +29,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.srp.config.SocialResourceConfiguration;
 import com.adobe.cq.social.ugc.api.SearchResults;
 import com.adobe.cq.social.ugc.api.UgcFilter;
@@ -72,6 +73,10 @@ public class TestCleanupServlet {
         Mockito.when(resource.getValueMap()).thenReturn(vm);
         ResourceResolver resolver = Mockito.mock(ResourceResolver.class);
         Mockito.when(resource.getResourceResolver()).thenReturn(resolver);
+ 
+        SocialResourceProvider srp = Mockito.mock(SocialResourceProvider.class);
+        Mockito.when(socialUtils.getConfiguredProvider(resource)).thenReturn(srp);
+ 
 
         // Add it to the search results.
         SearchResults<Resource> searchResults1 = Mockito.mock(SearchResults.class);
@@ -95,7 +100,7 @@ public class TestCleanupServlet {
         Mockito.when(request.getRequestParameter("path")).thenReturn(param);
         SlingHttpServletResponse response = Mockito.mock(SlingHttpServletResponse.class);
         servlet.doPost(request, response);
-        Mockito.verify(resolver, Mockito.times(1)).delete(resource);
+        Mockito.verify(srp, Mockito.times(1)).delete(resolver, resource.getPath());
         Mockito.verify(resolver, Mockito.times(1)).commit();
     }
 }

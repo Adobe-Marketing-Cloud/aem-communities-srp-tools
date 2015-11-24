@@ -34,8 +34,10 @@ import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.ugc.api.PathConstraint;
 import com.adobe.cq.social.ugc.api.PathConstraintType;
+import com.adobe.cq.social.ugc.api.SearchResults;
 import com.adobe.cq.social.ugc.api.UgcFilter;
 import com.adobe.cq.social.ugc.api.UgcSearch;
 import com.adobe.cq.social.ugcbase.SocialUtils;
@@ -109,16 +111,35 @@ public class CleanupServlet extends SlingAllMethodsServlet {
     private void cleanup(final ResourceResolver resolver, final int batchSize, final String path)
         throws RepositoryException, PersistenceException {
         long total = 0;
+        boolean retried = false;
         while (true) {
-            List<Resource> results = getResources(resolver, batchSize, path);
+            SearchResults<Resource> searchResults = getResources(resolver, batchSize, path);
+            List<Resource> results = removeChildren(searchResults.getResults());
             if (results.isEmpty()) {
+                if (searchResults.getTotalNumberOfResults() > 0 && !retried) {
+                    try {
+                        // Despite our sleep below, it looks like there is still data around, but we didn't find it.
+                        // Give things more time to get consistent and try one more time.
+                        LOG.info("Resource list is empty, but it looks like the data store isn't consistent yet. Letting things settle and retrying");
+
+                        Thread.sleep(5000);
+                    } catch (final InterruptedException e) {
+                        // If awoken, continue
+                    }
+                    retried = true;
+                    continue;
+                }
                 return;
             }
+
+            retried = false;
 
             for (Resource resource : results) {
                 LOG.debug("Deleting {}", resource.getPath());
                 try {
-                    resolver.delete(resource);
+                    // This must be a resource that is owned by a SocialResourceProvider. Force SRP to be used to delete it.
+                    SocialResourceProvider socialResourceProvider = socialUtils.getConfiguredProvider(resource);
+                    socialResourceProvider.delete(resolver, resource.getPath());
                 } catch (final PersistenceException e) {
                     LOG.debug("Resource already deleted {}", resource.getPath());
                 }
@@ -139,11 +160,15 @@ public class CleanupServlet extends SlingAllMethodsServlet {
         }
     }
 
-    private List<Resource> getResources(final ResourceResolver resolver, final int num, final String path)
+    private SearchResults<Resource> getResources(final ResourceResolver resolver, final int num, final String path)
         throws RepositoryException {
         UgcFilter filter = new UgcFilter();
         filter.addConstraint(new PathConstraint(path, PathConstraintType.IsDescendantNode));
-        List<Resource> resources = ugcSearch.find(null, resolver, filter, 0, num, false).getResults();
+        SearchResults<Resource> results = ugcSearch.find(null, resolver, filter, 0, num, false);
+        return results;
+    }
+
+    List<Resource> removeChildren(final List<Resource> resources) {
 
         // Go through the list of paths to see if the parent is included in the list. If so, we don't also
         // need to delete the child (it will be deleted when the parent is deleted).
