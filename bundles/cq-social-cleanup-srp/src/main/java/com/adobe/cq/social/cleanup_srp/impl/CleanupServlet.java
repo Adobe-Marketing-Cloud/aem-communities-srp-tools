@@ -86,8 +86,8 @@ public class CleanupServlet extends SlingAllMethodsServlet {
         }
 
         if (!path.startsWith(socialUtils.getDefaultStorageConfig().getAsiPath())) {
-            throw new ServletException(
-                "Path must begin with a UGC storage location (eg, /content/usergenerated/asi/cloud");
+            throw new ServletException("Path must begin with a UGC storage location. Was expecting "
+                    + socialUtils.getDefaultStorageConfig().getAsiPath() + ". Received " + path);
         }
 
         int batchSize = BATCH_SIZE;
