@@ -34,7 +34,9 @@ import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.adobe.cq.social.srp.SocialResource;
 import com.adobe.cq.social.srp.SocialResourceProvider;
+import com.adobe.cq.social.srp.config.SocialResourceConfiguration;
 import com.adobe.cq.social.ugc.api.PathConstraint;
 import com.adobe.cq.social.ugc.api.PathConstraintType;
 import com.adobe.cq.social.ugc.api.SearchResults;
@@ -112,6 +114,17 @@ public class CleanupServlet extends SlingAllMethodsServlet {
         throws RepositoryException, PersistenceException {
         long total = 0;
         boolean retried = false;
+        SocialResourceConfiguration config = socialUtils.getDefaultStorageConfig();
+        SocialResource rootResource = (SocialResource) resolver.getResource(config.getAsiPath());
+        rootResource.getResourceProvider().setConfig(config);
+        rootResource.getResourceProvider().delete(resolver, path);
+        try {
+            resolver.commit();
+        } catch (PersistenceException e) {
+            LOG.info("Could not persist deletion. Maybe there is nothing to delete", e);
+        }
+
+        // Some old SRP impls don't have recursive delete. Handle that case.
         while (true) {
             SearchResults<Resource> searchResults = getResources(resolver, batchSize, path);
             List<Resource> results = removeChildren(searchResults.getResults());
@@ -137,7 +150,8 @@ public class CleanupServlet extends SlingAllMethodsServlet {
             for (Resource resource : results) {
                 LOG.debug("Deleting {}", resource.getPath());
                 try {
-                    // This must be a resource that is owned by a SocialResourceProvider. Force SRP to be used to delete it.
+                    // This must be a resource that is owned by a SocialResourceProvider. Force SRP to be used to
+                    // delete it.
                     SocialResourceProvider socialResourceProvider = socialUtils.getConfiguredProvider(resource);
                     socialResourceProvider.delete(resolver, resource.getPath());
                 } catch (final PersistenceException e) {
