@@ -34,42 +34,55 @@
     <build>
             <plugins>
              <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-scr-plugin</artifactId>
-                <version>1.4.2</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.slf4j</groupId>
-                        <artifactId>slf4j-simple</artifactId>
-                        <version>1.5.2</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <execution>
-                        <id>generate-scr-scrdescriptor</id>
-                        <goals>
-                            <goal>scr</goal>
-                        </goals>
-                        <configuration>
-                            <!-- Private service properties for all services. -->
-                            <properties>
-                                <service.vendor>Adobe Systems Incorporated</service.vendor>
-                            </properties>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.felix</groupId>
-                <artifactId>maven-bundle-plugin</artifactId>
-                <extensions>true</extensions>
-                <version>2.3.6</version>
-                <configuration>
-                    <instructions>
-                        <Bundle-Category>communities</Bundle-Category>
-                    </instructions>
-                </configuration>
-            </plugin>
+	          <groupId>org.apache.felix</groupId>
+	          <artifactId>maven-scr-plugin</artifactId>
+	          <version>1.16.0</version>
+	          <executions>
+	            <execution>
+	              <id>generate-scr-scrdescriptor</id>
+	              <goals>
+	                <goal>scr</goal>
+	              </goals>
+	            </execution>
+	          </executions>
+	        </plugin>
+	        <plugin>
+	          <groupId>org.apache.felix</groupId>
+	          <artifactId>maven-bundle-plugin</artifactId>
+	          <version>2.5.0</version>
+	          <extensions>true</extensions>
+	          <inherited>true</inherited>
+	          <configuration>
+	            <obrRepository>NONE</obrRepository>
+	            <instructions>
+	              <Bundle-Category>social</Bundle-Category>
+	              <Bundle-DocURL>
+	                http://www.adobe.com
+	              </Bundle-DocURL>
+	              <Bundle-Vendor>Adobe Systems Inc.</Bundle-Vendor>
+	            </instructions>
+	          </configuration>
+	          <dependencies>
+	            <dependency>
+	              <groupId>biz.aQute.bnd</groupId>
+	              <artifactId>bndlib</artifactId>
+	              <version>2.4.0</version>
+	            </dependency>
+	          </dependencies>
+	          <executions>
+	            <execution>
+	              <id>baseline</id>
+	              <goals>
+	                <goal>baseline</goal>
+	              </goals>
+	              <configuration>
+	                <logResults>false</logResults>
+	                <failOnWarning>false</failOnWarning>
+	                <failOnError>false</failOnError>
+	              </configuration>
+	            </execution>
+	          </executions>
+	        </plugin>
             <plugin>
                 <groupId>org.apache.sling</groupId>
                 <artifactId>maven-sling-plugin</artifactId>
@@ -101,7 +114,7 @@
         <dependency>
             <groupId>com.adobe.cq.social</groupId>
             <artifactId>cq-socialcommunities-api</artifactId>
-            <version>1.8.215</version>
+            <version>1.8.305</version>
         </dependency>
         <!-- *************************************************************** -->
         <!-- Other -->

@@ -51,7 +51,7 @@ import com.adobe.cq.social.ugcbase.SocialUtils;
  * read and delete access to. By default, things will be deleted in batches of approximately 100 items. This can be
  * modified with the optional batchSize parameter (eg, batchSize=200 will do batches of 200).
  */
-@Component(specVersion = "1.0")
+@Component
 @Service
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/srp/cleanup")})
 public class CleanupServlet extends SlingAllMethodsServlet {
