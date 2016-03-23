@@ -154,9 +154,10 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
 	        	try {
 	        		if(needsFixing(props)) {
 	        			String userId = props.get(CollabUser.PROP_NAME, "").toString();
-	        			if(!"".equals(userId) ) {
+	        			if("".equals(userId.trim())) userId = props.get("authorizableId", "");
+	        			if(!"".equals(userId.trim()) ) {
 	        				output.println((totalFixed+1) + ". Updating user: <b>" + userId + "</b>, for post: <b>"+ res.getPath() + "</b><br>");
-	        				if(saveChanges) addSocialSpecificFields(resolver, props, output);
+	        				if(saveChanges) addSocialSpecificFields(resolver, props, userId, output);
 	        			} else {
 	        				output.println((totalFixed+1) + ". User info missing for post: <b>"+ res.getPath() + "</b><br>");
 	        			}
@@ -182,14 +183,14 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         output.println("Done, updated " + totalFixed + " posts");
     }
     
-    private void addSocialSpecificFields(final ResourceResolver resolver, final Map<String, Object> map, PrintWriter output) throws ServletException {
+    private void addSocialSpecificFields(final ResourceResolver resolver, final Map<String, Object> map, String userId, PrintWriter output) throws ServletException {
     	Externalizer externalizer = resolver.adaptTo(Externalizer.class);
         /*if (map.containsKey(SocialUtils.PN_CS_ROOT) && map.containsKey(SocialUtils.PN_PARENTID)) {
             final String parent = (String) map.get(SocialUtils.PN_PARENTID);
             final String root = (String) map.get(SocialUtils.PN_CS_ROOT);
             map.put(SocialUtils.PN_IS_REPLY, !StringUtils.equals(parent, root));
         }*/
-        if (map.containsKey(CollabUser.PROP_NAME) && map.containsKey(SocialUtils.PN_CS_ROOT)) {
+        if (userId != null && !"".equals(userId) && map.containsKey(SocialUtils.PN_CS_ROOT)) {
             final UserProperties up =
                 SocialResourceUtils.getUserProperties(resolver, (String) map.get(CollabUser.PROP_NAME));
             if (up != null) {
