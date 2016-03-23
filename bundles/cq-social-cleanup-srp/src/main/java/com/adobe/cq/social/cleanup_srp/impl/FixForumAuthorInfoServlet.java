@@ -183,7 +183,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         output.println("Done, updated " + totalFixed + " posts");
     }
     
-    private void addSocialSpecificFields(final ResourceResolver resolver, final Map<String, Object> map, String userId, PrintWriter output) throws ServletException {
+    private void addSocialSpecificFields(final ResourceResolver resolver, final ValueMap map, String userId, PrintWriter output) throws ServletException {
     	Externalizer externalizer = resolver.adaptTo(Externalizer.class);
         /*if (map.containsKey(SocialUtils.PN_CS_ROOT) && map.containsKey(SocialUtils.PN_PARENTID)) {
             final String parent = (String) map.get(SocialUtils.PN_PARENTID);
@@ -205,6 +205,9 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
                     final String socialProfilePage =
                         WCMUtils.getInheritedProperty(ugcParentPage, resolver, "cq:socialProfilePage");
                     final String authorPath = up.getNode().getPath();
+                    if(!map.containsKey("userIdentifier") || "".equals(map.get("userIdentifier", ""))) map.put("userIdentifier", userId);
+                    if(!map.containsKey("authorizableId") || "".equals(map.get("authorizableId", ""))) map.put("authorizableId", userId);
+                    if((!map.containsKey("email") || "".equals(map.get("email", ""))) && up.getProperty("./profile/email") != null) map.put("email", up.getProperty("./profile/email"));
                     map.put("author_display_name", displayName);
                     output.print("  * author_display_name=" + displayName);
                     output.println("<br>");
