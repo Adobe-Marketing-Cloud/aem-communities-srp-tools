@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import javax.jcr.RepositoryException;
 import javax.servlet.ServletException;
@@ -31,6 +30,7 @@ import org.apache.sling.api.request.RequestParameter;
 import org.apache.sling.api.resource.PersistenceException;
 import org.apache.sling.api.resource.Resource;
 import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ModifiableValueMap;
 import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.api.servlets.SlingAllMethodsServlet;
 import org.slf4j.Logger;
@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory;
 
 import com.adobe.cq.social.commons.CollabUser;
 import com.adobe.cq.social.srp.SocialResource;
+import com.adobe.cq.social.srp.SocialResourceProvider;
 import com.adobe.cq.social.srp.config.SocialResourceConfiguration;
 import com.adobe.cq.social.ugc.api.PathConstraint;
 import com.adobe.cq.social.ugc.api.PathConstraintType;
@@ -63,7 +64,8 @@ import com.day.cq.wcm.commons.WCMUtils;
 @Properties({@Property(name = "sling.servlet.paths", value = "/services/social/srp/fixauthorinfo")})
 public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     private static final long serialVersionUID = 1L;
-    private static final Logger LOG = LoggerFactory.getLogger(CleanupServlet.class);
+
+    private static final Logger LOG = LoggerFactory.getLogger(FixForumAuthorInfoServlet.class);
     private static final int BATCH_SIZE = 100;
     
     @Reference
@@ -71,7 +73,11 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
 
     @Reference
     private SocialUtils socialUtils;
-
+    
+    private static boolean isRunning = false;
+    
+    private Thread runningThread;
+    
     protected void doGet(final SlingHttpServletRequest request, final SlingHttpServletResponse response) throws ServletException, IOException {
     	doPost(request, response);
     }
@@ -86,7 +92,15 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     protected void doPost(final SlingHttpServletRequest request, final SlingHttpServletResponse response)
         throws ServletException, IOException {
     	response.setContentType("text/html;charset=utf-8");
-        RequestParameter param = request.getRequestParameter("path");       
+    	
+    	//stop the running process after it finishes the current batch
+    	if(request.getRequestParameter("cancel") != null) {
+    		cancel();
+        	response.getWriter().append("Cancel requested");
+        	return;
+    	}
+        
+    	RequestParameter param = request.getRequestParameter("path");
         String path = null;
         if (param != null) {
             path = param.getString("UTF-8");
@@ -118,15 +132,37 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         boolean saveChanges = (request.getParameter("saveChanges") != null && request.getParameter("saveChanges").equals("true"));
         if(!saveChanges) response.getWriter().println("Running as dry run, to make changes add request parameter saveChanges=true<br>");
         try {
-        	fixAuthorInfo(request.getResourceResolver(), batchSize, path, saveChanges, response.getWriter());
+        	runFixAuthorInfo(request.getResourceResolver(), batchSize, path, saveChanges, response.getWriter());
         } catch (final RepositoryException e) {
             throw new ServletException("Could not update author info", e);
         }
     }
-
+        
+    public void runFixAuthorInfo(final ResourceResolver resolver, final int batchSize, final String path, boolean saveChanges, PrintWriter output) throws PersistenceException, RepositoryException {
+    	synchronized(this) {
+        	if(isRunning) {
+            	output.append("Process already running");
+            	return;
+            } else {
+            	isRunning = true;
+            	runningThread = Thread.currentThread();
+            }
+    	}
+    	fixAuthorInfo(resolver, batchSize, path, saveChanges, output);
+    	synchronized(this) {
+    		isRunning = false;
+    		runningThread = null;
+    	}
+    }
+    
+    public synchronized void cancel() {
+    	if(runningThread != null) runningThread.interrupt();
+    }
+    
     private void fixAuthorInfo(final ResourceResolver resolver, final int batchSize, final String path, boolean saveChanges, PrintWriter output)
         throws RepositoryException, PersistenceException {
-        boolean retried = false;
+        
+    	boolean retried = false;
         UserManager userManager = resolver.adaptTo(UserManager.class);
         SocialResourceConfiguration config = socialUtils.getDefaultStorageConfig();
         SocialResource rootResource = (SocialResource) resolver.getResource(config.getAsiPath());
@@ -150,40 +186,57 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
 	        Iterator<Resource> iter = list.iterator();
 	        while(iter.hasNext()) {
 	            Resource res = iter.next();
-	            ValueMap props = res.adaptTo(ValueMap.class);
+	            ModifiableValueMap props = res.adaptTo(ModifiableValueMap.class);
 	        	try {
 	        		if(needsFixing(props)) {
 	        			String userId = props.get(CollabUser.PROP_NAME, "").toString();
 	        			if("".equals(userId.trim())) userId = props.get("authorizableId", "");
 	        			if(!"".equals(userId.trim()) ) {
 	        				output.println((totalFixed+1) + ". Updating user: <b>" + userId + "</b>, for post: <b>"+ res.getPath() + "</b><br>");
-	        				if(saveChanges) addSocialSpecificFields(resolver, props, userId, output);
+	        				addSocialSpecificFields(resolver, props, userId, output, saveChanges);
 	        			} else {
 	        				output.println((totalFixed+1) + ". User info missing for post: <b>"+ res.getPath() + "</b><br>");
 	        			}
 						totalFixed++;
 	        		}
 				} catch (Exception e) {
-					output.println(e.getMessage() + " " + ((e.getCause() != null)?e.getCause().getMessage():"") + "<br>");
+					output.println("No changes made: " + e.getMessage() + " " + ((e.getCause() != null)?e.getCause().getMessage():"") + "<br>");
 				}
 	        }
 	        counter++;
 	        if(saveChanges && totalFixed % batchSize == 0) {
 	        	output.flush();
+	        	output.println("Saving.. <br>");
 	        	resolver.commit();
 	        }
 	        try {
+	        	if(Thread.currentThread().isInterrupted()) {
+	        		synchronized(this) {
+	        			isRunning = false;
+	        			runningThread = null;
+	        		}
+	        		output.println("<br>Process cancelled");
+	        		return;
+	        	}
 	        	//Don't overload the backend and allow interruption of thread
 	        	Thread.sleep(500);
 	        } catch (InterruptedException ie) {
+        		synchronized(this) {
+        			isRunning = false;
+        			runningThread = null;
+        			output.println("<br>Process cancelled");
+        		}
 	        	return;
 	        }
         } while (hasMore);
-        if(saveChanges) resolver.commit();
+        if(saveChanges) {
+        	output.println("Saving.. <br>");
+        	resolver.commit();
+        }
         output.println("Done, updated " + totalFixed + " posts");
     }
-    
-    private void addSocialSpecificFields(final ResourceResolver resolver, final ValueMap map, String userId, PrintWriter output) throws ServletException {
+            
+    private void addSocialSpecificFields(final ResourceResolver resolver, final ModifiableValueMap map, String userId, PrintWriter output, boolean saveChanges) throws ServletException {
     	Externalizer externalizer = resolver.adaptTo(Externalizer.class);
         /*if (map.containsKey(SocialUtils.PN_CS_ROOT) && map.containsKey(SocialUtils.PN_PARENTID)) {
             final String parent = (String) map.get(SocialUtils.PN_PARENTID);
@@ -205,22 +258,32 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
                     final String socialProfilePage =
                         WCMUtils.getInheritedProperty(ugcParentPage, resolver, "cq:socialProfilePage");
                     final String authorPath = up.getNode().getPath();
-                    if(!map.containsKey("userIdentifier") || "".equals(map.get("userIdentifier", ""))) map.put("userIdentifier", userId);
-                    if(!map.containsKey("authorizableId") || "".equals(map.get("authorizableId", ""))) map.put("authorizableId", userId);
-                    if((!map.containsKey("email") || "".equals(map.get("email", ""))) && up.getProperty("./profile/email") != null) map.put("email", up.getProperty("./profile/email"));
-                    map.put("author_display_name", displayName);
+                    if(!map.containsKey("userIdentifier") || "".equals(map.get("userIdentifier", ""))) {
+                    	if(saveChanges) map.put("userIdentifier", userId);
+                    }
+                    if(!map.containsKey("authorizableId") || "".equals(map.get("authorizableId", ""))) {
+                    	if(saveChanges) map.put("authorizableId", userId);
+                    }
+                    /*if((!map.containsKey("email") || "".equals(map.get("email", ""))) && up.getProperty("./profile/email") != null) {
+                    	if(saveChanges) map.put("email", up.getProperty("./profile/email"));
+                        output.print("  * email=" + up.getProperty("./profile/email"));
+                    }*/
+                    if(saveChanges) map.put("author_display_name", displayName);
                     output.print("  * author_display_name=" + displayName);
                     output.println("<br>");
 
-                    if (externalizer != null) {
-                        map.put("author_image_url",
+                    /*if (externalizer != null) {
+                    	if(saveChanges) {
+                    		map.put("author_image_url",
                             externalizer.publishLink(resolver, authorAvatar));
-                        map.put("author_profile_url",
-                            externalizer.publishLink(resolver, authorPath + ".form.html" + ((socialProfilePage != null)?socialProfilePage:"")));
-                        output.print("  * author_image_url=" + externalizer.publishLink(resolver, authorAvatar) + ", " + "author_profile_url=" +
+                    		map.put("author_profile_url",
+                    				externalizer.publishLink(resolver, authorPath + ".form.html" + ((socialProfilePage != null)?socialProfilePage:"")));
+                    	}
+                    	output.println("  * author_image_url=" + externalizer.publishLink(resolver, authorAvatar) + "<br>");
+                    	output.print("  * author_profile_url=" +
                                 externalizer.publishLink(resolver, authorPath + ".form.html" + ((socialProfilePage != null)?socialProfilePage:"")));
                         output.println("<br>");
-                    }
+                    }*/
                 } catch (final RepositoryException e) {
                     throw new ServletException("Could not get display name!", e);
                 }
@@ -239,8 +302,9 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         return results;
     }
 
-	boolean needsFixing(ValueMap props) {
+	private boolean needsFixing(ValueMap props) {
 		return (props.get("eventTopic", "").equals("forum")
 				&& props.containsKey(CollabUser.PROP_NAME) && props.containsKey(SocialUtils.PN_CS_ROOT) && !props.containsKey("author_display_name"));
     }
+    
 }
