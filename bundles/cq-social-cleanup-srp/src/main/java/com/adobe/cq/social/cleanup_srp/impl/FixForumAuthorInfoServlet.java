@@ -54,7 +54,11 @@ import com.day.cq.wcm.api.PageManager;
 import com.day.cq.wcm.commons.WCMUtils;
 
 /**
- * This servlet will hunt down and update missing author info on all forum posts under a specified path. For example
+ * This servlet will hunt down and update missing author_display_name on all forum posts under a specified path. 
+ * The author_display_name field fails to get set when the communities service user doesn't have access to the user's profile
+ * because users are not located under /home/users/commity or the service user's acl was removed on accident.
+ * See the docs for proper social communities user management: https://docs.adobe.com/docs/en/aem/6-1/administer/communities/users.html#Creating Community Members
+ * For example
  * "curl -u admin:admin -X POST -F saveChanges=true -F path=/content/usergenerated/asi/cloud http://localhost:4502/services/social/srp/fixauthorinfo"
  * will find all forum posts under/content/usergenerated/asi/cloud. It will only update content that the given user has
  * read and delete access to. If saveChanges is not "true" or not set then it will be a dry run.
@@ -238,11 +242,14 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
             
     private void addSocialSpecificFields(final ResourceResolver resolver, final ModifiableValueMap map, String userId, PrintWriter output, boolean saveChanges) throws ServletException {
     	Externalizer externalizer = resolver.adaptTo(Externalizer.class);
-        /*if (map.containsKey(SocialUtils.PN_CS_ROOT) && map.containsKey(SocialUtils.PN_PARENTID)) {
+        /*
+        // Commented out to avoid setting reply flag
+        if (map.containsKey(SocialUtils.PN_CS_ROOT) && map.containsKey(SocialUtils.PN_PARENTID)) {
             final String parent = (String) map.get(SocialUtils.PN_PARENTID);
             final String root = (String) map.get(SocialUtils.PN_CS_ROOT);
             map.put(SocialUtils.PN_IS_REPLY, !StringUtils.equals(parent, root));
-        }*/
+        }
+        */
         if (userId != null && !"".equals(userId) && map.containsKey(SocialUtils.PN_CS_ROOT)) {
             final UserProperties up =
                 SocialResourceUtils.getUserProperties(resolver, (String) map.get(CollabUser.PROP_NAME));
@@ -272,7 +279,9 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
                     output.print("  * author_display_name=" + displayName);
                     output.println("<br>");
 
-                    /*if (externalizer != null) {
+                    /*
+	            // Commented out to avoid setting profile info
+                    if (externalizer != null) {
                     	if(saveChanges) {
                     		map.put("author_image_url",
                             externalizer.publishLink(resolver, authorAvatar));
@@ -283,7 +292,8 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
                     	output.print("  * author_profile_url=" +
                                 externalizer.publishLink(resolver, authorPath + ".form.html" + ((socialProfilePage != null)?socialProfilePage:"")));
                         output.println("<br>");
-                    }*/
+                    }
+                    */
                 } catch (final RepositoryException e) {
                     throw new ServletException("Could not get display name!", e);
                 }
