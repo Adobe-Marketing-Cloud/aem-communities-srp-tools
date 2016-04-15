@@ -313,8 +313,9 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     }
 
 	private boolean needsFixing(ValueMap props) {
-		return (props.get("eventTopic", "").equals("forum")
-				&& props.containsKey(CollabUser.PROP_NAME) && props.containsKey(SocialUtils.PN_CS_ROOT) && !props.containsKey("author_display_name"));
+		return (props.get("resourceType", "").equals("social/forum/components/hbs/topic")
+				&& (props.containsKey(CollabUser.PROP_NAME) || props.containsKey("authorizableId"))
+				&& props.containsKey(SocialUtils.PN_CS_ROOT) && !props.containsKey("author_display_name"));
     }
     
 }
