@@ -74,7 +74,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     @Reference
     private SocialUtils socialUtils;
     
-    private static boolean isRunning = false;
+    private static volatile boolean isRunning = false;
     private static volatile boolean requestStop = false;
     
     private Thread runningThread;
@@ -157,7 +157,9 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     }
     
     public synchronized void cancel() {
-    	if(runningThread != null) requestStop = true;
+    	synchronized(this) {
+    		if(runningThread != null) requestStop = true;
+    	}
     }
     
     private void fixAuthorInfo(final ResourceResolver resolver, final int batchSize, final String path, boolean saveChanges, PrintWriter output)
@@ -214,6 +216,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         		synchronized(this) {
         			isRunning = false;
         			runningThread = null;
+        			requestStop = false;
         		}
         		output.println("<br>Process cancelled");
         		return;
@@ -225,6 +228,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         		synchronized(this) {
         			isRunning = false;
         			runningThread = null;
+        			requestStop = false;
         			output.println("<br>Process cancelled");
         		}
 	        	return;
