@@ -75,6 +75,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     private SocialUtils socialUtils;
     
     private static boolean isRunning = false;
+    private static volatile boolean requestStop = false;
     
     private Thread runningThread;
     
@@ -156,7 +157,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     }
     
     public synchronized void cancel() {
-    	if(runningThread != null) runningThread.interrupt();
+    	if(runningThread != null) requestStop = true;
     }
     
     private void fixAuthorInfo(final ResourceResolver resolver, final int batchSize, final String path, boolean saveChanges, PrintWriter output)
@@ -209,15 +210,15 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
 	        	output.println("Saving.. <br>");
 	        	resolver.commit();
 	        }
+        	if(requestStop) {
+        		synchronized(this) {
+        			isRunning = false;
+        			runningThread = null;
+        		}
+        		output.println("<br>Process cancelled");
+        		return;
+        	}
 	        try {
-	        	if(Thread.currentThread().isInterrupted()) {
-	        		synchronized(this) {
-	        			isRunning = false;
-	        			runningThread = null;
-	        		}
-	        		output.println("<br>Process cancelled");
-	        		return;
-	        	}
 	        	//Don't overload the backend and allow interruption of thread
 	        	Thread.sleep(500);
 	        } catch (InterruptedException ie) {
