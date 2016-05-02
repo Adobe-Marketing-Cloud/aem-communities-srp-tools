@@ -194,6 +194,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
 	        		if(needsFixing(props)) {
 	        			String userId = props.get(CollabUser.PROP_NAME, "").toString();
 	        			if("".equals(userId.trim())) userId = props.get("authorizableId", "");
+	        			if("".equals(userId.trim())) userId = props.get("author_username","");
 	        			if(!"".equals(userId.trim()) ) {
 	        				output.println((totalFixed+1) + ". Updating user: <b>" + userId + "</b>, for post: <b>"+ res.getPath() + "</b><br>");
 	        				addSocialSpecificFields(resolver, props, userId, output, saveChanges);
