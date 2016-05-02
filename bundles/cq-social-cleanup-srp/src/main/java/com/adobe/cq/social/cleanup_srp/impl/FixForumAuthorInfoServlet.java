@@ -251,7 +251,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         }*/
         if (userId != null && !"".equals(userId) && map.containsKey(SocialUtils.PN_CS_ROOT)) {
             final UserProperties up =
-                SocialResourceUtils.getUserProperties(resolver, (String) map.get(CollabUser.PROP_NAME));
+                SocialResourceUtils.getUserProperties(resolver, userId);
             if (up != null) {
                 try {
                     final PageManager pageManager = resolver.adaptTo(PageManager.class);
