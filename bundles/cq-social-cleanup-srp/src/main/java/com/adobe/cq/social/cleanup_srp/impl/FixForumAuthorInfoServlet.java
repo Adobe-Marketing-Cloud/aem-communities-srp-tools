@@ -249,7 +249,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
             final String root = (String) map.get(SocialUtils.PN_CS_ROOT);
             map.put(SocialUtils.PN_IS_REPLY, !StringUtils.equals(parent, root));
         }*/
-        if (userId != null && !"".equals(userId) && map.containsKey(SocialUtils.PN_CS_ROOT)) {
+        if (userId != null && !"".equals(userId)) {
             final UserProperties up =
                 SocialResourceUtils.getUserProperties(resolver, userId);
             if (up != null) {
