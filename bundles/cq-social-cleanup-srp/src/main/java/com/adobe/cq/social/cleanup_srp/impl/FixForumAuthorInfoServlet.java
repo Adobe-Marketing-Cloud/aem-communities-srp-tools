@@ -156,11 +156,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
     	}
     }
     
-<<<<<<< Updated upstream
-    public synchronized void cancel() {
-=======
     public void cancel() {
->>>>>>> Stashed changes
     	synchronized(this) {
     		if(runningThread != null) requestStop = true;
     	}
@@ -314,11 +310,7 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
 
 	private boolean needsFixing(ValueMap props) {
 		return (props.get("social:baseType", "").equals("social/commons/components/comments/comment")
-<<<<<<< Updated upstream
 				&& (props.containsKey(CollabUser.PROP_NAME) || props.containsKey("authorizableId") || props.containsKey("author_username"))
-=======
-				&& (props.containsKey(CollabUser.PROP_NAME) || props.containsKey("authorizableId"))
->>>>>>> Stashed changes
 				&& props.containsKey(SocialUtils.PN_CS_ROOT) && !props.containsKey("author_display_name"));
 	}
     
