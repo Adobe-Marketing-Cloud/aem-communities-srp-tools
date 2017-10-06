@@ -308,10 +308,10 @@ public class FixForumAuthorInfoServlet extends SlingAllMethodsServlet {
         return results;
     }
 
-	private boolean needsFixing(ValueMap props) {
-		return (props.get("social:baseType", "").equals("social/commons/components/comments/comment")
-				&& (props.containsKey(CollabUser.PROP_NAME) || props.containsKey("authorizableId") || props.containsKey("author_username"))
-				&& props.containsKey(SocialUtils.PN_CS_ROOT) && !props.containsKey("author_display_name"));
-	}
+    private boolean needsFixing(ValueMap props) {
+        return (props.get("social:baseType", "").equals("social/commons/components/comments/comment")
+            && (props.containsKey(CollabUser.PROP_NAME) || props.containsKey("authorizableId") || props.containsKey("author_username"))
+            && props.containsKey(SocialUtils.PN_CS_ROOT) && !props.containsKey("author_display_name"));
+    }
     
 }
