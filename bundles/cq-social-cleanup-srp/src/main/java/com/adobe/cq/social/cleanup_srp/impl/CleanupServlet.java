@@ -58,6 +58,7 @@ public class CleanupServlet extends SlingAllMethodsServlet {
     private static final long serialVersionUID = 1L;
     private static final Logger LOG = LoggerFactory.getLogger(CleanupServlet.class);
     private static final int BATCH_SIZE = 100;
+    private static final String JCR_ASI_PATH = "/content/usergenerated/asi/jcr";
 
     @Reference
     private UgcSearch ugcSearch;
@@ -116,7 +117,7 @@ public class CleanupServlet extends SlingAllMethodsServlet {
         boolean retried = false;
         SocialResourceConfiguration config = socialUtils.getDefaultStorageConfig();
         // For SRPs that handle recursive delete
-        if (config.getAsiPath().equals("/content/usergenerated/asi/jcr")) {
+        if (config.getAsiPath().equals(JCR_ASI_PATH)) {
             SocialResource rootResource = (SocialResource) resolver.getResource(config.getAsiPath());
             rootResource.getResourceProvider().setConfig(config);
             rootResource.getResourceProvider().delete(resolver, path);
